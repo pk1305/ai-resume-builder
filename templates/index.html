@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>AI Resume Builder</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* { box-sizing: border-box; }
+
+:root {
+    --accent-color: #5f27cd;
+}
+
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(120deg, #1f1c2c, #928dab);
+    display: flex;
+    height: 100vh;
+}
+
+/* LEFT PANEL */
+.left {
+    width: 40%;
+    background: #fff;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 10px;
+    display: block;
+}
+
+.required { color: red; }
+
+input, textarea, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 30px;
+    border: none;
+    background: linear-gradient(90deg, var(--accent-color), #341f97);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* RIGHT PANEL */
+.right {
+    width: 60%;
+    padding: 40px;
+    background: #f4f6fc;
+    overflow-y: auto;
+}
+
+/* PREVIEW */
+.preview-card {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.preview-name {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-color);
+    margin-top: 15px;
+    text-transform: uppercase;
+}
+
+.skills span {
+    display: inline-block;
+    background: #eef2ff;
+    color: var(--accent-color);
+    padding: 5px 10px;
+    border-radius: 20px;
+    margin: 4px;
+    font-size: 12px;
+}
+
+#preview_photo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: none;
+}
+
+#ats_score {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.corporate { border-left: 5px solid #2c3e50; }
+.creative { background: linear-gradient(135deg,#ffecd2,#fcb69f); }
+.minimal { border: 1px solid #ddd; }
+
+#downloadSection {
+    margin-top: 20px;
+    display: none;
+}
+
+@media(max-width:1000px){
+    body { flex-direction: column; }
+    .left,.right { width:100%; }
+}
+
+/* PRINT STYLE */
+@media print {
+    body { background: white; }
+    .left { display: none; }
+    #downloadSection { display: none; }
+    .preview-card { box-shadow: none; border: none; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="left">
+
+<h2>🚀 AI Resume Builder</h2>
+
+<label>Template Style</label>
+<select id="template" onchange="changeTemplate()">
+<option value="corporate">Corporate</option>
+<option value="creative">Creative</option>
+<option value="minimal">Minimal</option>
+</select>
+
+<label>Accent Color</label>
+<input type="color" id="colorPicker" onchange="changeColor()">
+
+<label>Profile Photo</label>
+<input type="file" id="photo" accept="image/*" onchange="loadPhoto(event)">
+
+<label>Full Name <span class="required">*</span></label>
+<input type="text" id="name" oninput="updatePreview()">
+
+<label>Education <span class="required">*</span></label>
+<textarea id="education" oninput="updatePreview()"></textarea>
+
+<label>Skills (comma separated) <span class="required">*</span></label>
+<textarea id="skills" oninput="updatePreview()"></textarea>
+
+<label>Projects <span class="required">*</span></label>
+<textarea id="projects" oninput="updatePreview()"></textarea>
+
+<label>Experience</label>
+<textarea id="experience" oninput="updatePreview()"></textarea>
+
+<button onclick="generateResume()">Generate Final Resume</button>
+
+</div>
+
+<div class="right">
+<div class="preview-card corporate" id="preview">
+
+<div class="preview-header">
+<img id="preview_photo">
+<div class="preview-name" id="preview_name">Your Name</div>
+</div>
+
+<div class="section-title">Education</div>
+<div id="preview_education"></div>
+
+<div class="section-title">Skills</div>
+<div class="skills" id="preview_skills"></div>
+
+<div class="section-title">Projects</div>
+<div id="preview_projects"></div>
+
+<div class="section-title">Experience</div>
+<div id="preview_experience"></div>
+
+<div class="section-title">ATS Score</div>
+<div id="ats_score">0%</div>
+
+</div>
+
+<div id="downloadSection">
+<button onclick="downloadResume()">Download as PDF</button>
+</div>
+
+</div>
+
+<script>
+
+function updatePreview(){
+
+const nameInput = document.getElementById("name");
+const edu = document.getElementById("education");
+const skillsInput = document.getElementById("skills");
+const projects = document.getElementById("projects");
+const exp = document.getElementById("experience");
+
+preview_name.innerText = nameInput.value || "Your Name";
+preview_education.innerText = edu.value;
+preview_projects.innerText = projects.value;
+preview_experience.innerText = exp.value;
+
+/* Skill Auto Grouping */
+let skillsArray = skillsInput.value.split(",");
+let grouped = {Frontend:[], Programming:[], Other:[]};
+
+skillsArray.forEach(skill=>{
+let s = skill.trim().toLowerCase();
+if(["html","css","javascript","react"].includes(s))
+grouped.Frontend.push(skill.trim());
+else if(["java","python","c","c++"].includes(s))
+grouped.Programming.push(skill.trim());
+else if(skill.trim()!=="")
+grouped.Other.push(skill.trim());
+});
+
+let skillsHTML="";
+for(let cat in grouped){
+if(grouped[cat].length>0){
+skillsHTML += `<div style="font-weight:600;margin-top:8px;">${cat}</div>`;
+grouped[cat].forEach(skill=>{
+skillsHTML += `<span>${skill}</span>`;
+});
+}
+}
+preview_skills.innerHTML = skillsHTML;
+
+/* ATS Score */
+let score=0;
+if(nameInput.value.length>3) score+=20;
+if(edu.value.length>5) score+=20;
+if(skillsArray.filter(s=>s.trim()!=="").length>=3) score+=20;
+if(projects.value.length>10) score+=20;
+if(exp.value.length>5) score+=20;
+
+ats_score.innerText = score+"% Match";
+}
+
+function changeTemplate(){
+preview.className="preview-card "+template.value;
+}
+
+function changeColor(){
+document.documentElement.style.setProperty('--accent-color',colorPicker.value);
+}
+
+function loadPhoto(event){
+const img=document.getElementById("preview_photo");
+img.src=URL.createObjectURL(event.target.files[0]);
+img.style.display="block";
+}
+
+function generateResume(){
+
+const nameVal=document.getElementById("name").value.trim();
+const eduVal=document.getElementById("education").value.trim();
+const skillsVal=document.getElementById("skills").value.trim();
+const projectsVal=document.getElementById("projects").value.trim();
+
+if(nameVal===""||eduVal===""||skillsVal===""||projectsVal===""){
+alert("Please fill all mandatory (*) fields.");
+return;
+}
+
+document.querySelector(".left").style.display="none";
+document.querySelector(".right").style.width="100%";
+document.getElementById("downloadSection").style.display="block";
+
+alert("Final Resume Generated Successfully!");
+}
+
+function downloadResume(){
+window.print();
+}
+
+</script>
+
+</body>
+</html>
